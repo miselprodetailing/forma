@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>FORMA</title>
+  <meta name="theme-color" content="#0a0a0b" />
+  <meta name="description" content="Lični dnevnik kalorija, vode i kilaže." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+  <link rel="preload" href="assets/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ===== DANAS ===== -->
+    <section class="screen on" id="scr-danas" aria-label="Danas">
+      <header class="top">
+        <button class="ico" id="dayPrev" aria-label="Prethodni dan">‹</button>
+        <div class="daylbl"><small id="dayKick">DANAS</small><b id="dayName">—</b></div>
+        <button class="ico" id="dayNext" aria-label="Sledeći dan">›</button>
+      </header>
+
+      <div class="hero card">
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 260 260" aria-hidden="true">
+            <defs>
+              <linearGradient id="gOk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4dffb0"/><stop offset="1" stop-color="#17b978"/></linearGradient>
+              <linearGradient id="gWarn" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd166"/><stop offset="1" stop-color="#ff9f1c"/></linearGradient>
+              <linearGradient id="gBad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5a4d"/><stop offset="1" stop-color="#e10600"/></linearGradient>
+            </defs>
+            <circle cx="130" cy="130" r="112" class="ring-bg" />
+            <circle cx="130" cy="130" r="112" class="ring-fg" id="ringFg" transform="rotate(-90 130 130)" />
+            <circle cx="130" cy="130" r="112" class="ring-over" id="ringOver" transform="rotate(-90 130 130)" />
+          </svg>
+          <div class="ring-txt">
+            <small id="ringKick">PREOSTALO</small>
+            <b id="ringNum">0</b>
+            <span>kcal</span>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <div><small>CILJ</small><b id="stTarget">0</b></div>
+          <div><small>POJEDENO</small><b id="stEaten">0</b></div>
+          <div><small>NIZ</small><b id="stStreak">0🔥</b></div>
+        </div>
+        <div class="macros">
+          <div class="mac" data-k="p"><div class="mac-h"><span>Proteini</span><b><i id="mP">0</i>/<i id="mPt">0</i> g</b></div><div class="bar"><i id="bP"></i></div></div>
+          <div class="mac" data-k="c"><div class="mac-h"><span>Ugljeni hidrati</span><b><i id="mC">0</i>/<i id="mCt">0</i> g</b></div><div class="bar"><i id="bC"></i></div></div>
+          <div class="mac" data-k="f"><div class="mac-h"><span>Masti</span><b><i id="mF">0</i>/<i id="mFt">0</i> g</b></div><div class="bar"><i id="bF"></i></div></div>
+        </div>
+      </div>
+
+      <div class="alert" id="alert" hidden></div>
+
+      <div class="card water">
+        <div class="row-h"><h3>💧 Voda</h3><span id="waterTxt">0 / 0 L</span></div>
+        <div class="glasses" id="glasses"></div>
+      </div>
+
+      <div id="meals"></div>
+      <p class="tip" id="tip"></p>
+    </section>
+
+    <!-- ===== NAPREDAK ===== -->
+    <section class="screen" id="scr-napredak" aria-label="Napredak">
+      <header class="top plain"><div class="daylbl"><small>TVOJ</small><b>NAPREDAK</b></div></header>
+      <div class="card">
+        <div class="row-h"><h3>Kilaža</h3><button class="chip red" id="addWeight">+ Upiši</button></div>
+        <div class="wbig"><div><small>SADA</small><b id="wNow">—</b></div><div><small>SKINUTO</small><b id="wLost" class="ok">—</b></div><div><small>CILJ</small><b id="wGoal">—</b></div></div>
+        <div class="wprog"><i id="wProg"></i></div>
+        <p class="eta" id="wEta"></p>
+        <svg class="chart" id="wChart" viewBox="0 0 340 180" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="card">
+        <div class="row-h"><h3>Poslednjih 7 dana</h3><span id="wkAvg"></span></div>
+        <svg class="chart bars" id="wkChart" viewBox="0 0 340 170" preserveAspectRatio="none"></svg>
+        <div class="wklbl" id="wkLbl"></div>
+      </div>
+      <div class="card">
+        <h3>Nagrade</h3>
+        <div class="badges" id="badges"></div>
+      </div>
+    </section>
+
+    <!-- ===== PROFIL ===== -->
+    <section class="screen" id="scr-profil" aria-label="Profil">
+      <header class="top plain"><div class="daylbl"><small>MOJ</small><b>PLAN</b></div></header>
+      <div class="card plan">
+        <div class="plan-big"><small>DNEVNI CILJ</small><b id="pTarget">0</b><span>kcal</span></div>
+        <div class="plan-row"><span>Bazni metabolizam</span><b id="pBmr">0</b></div>
+        <div class="plan-row"><span>Potrošnja sa aktivnošću</span><b id="pTdee">0</b></div>
+        <div class="plan-row"><span>Deficit</span><b id="pDef">0</b></div>
+        <div class="plan-row"><span>Očekivano</span><b id="pRate">0</b></div>
+      </div>
+      <form class="card form" id="profForm">
+        <h3>Moji podaci</h3>
+        <div class="grid2">
+          <label>Godine<input name="age" type="number" inputmode="numeric" min="14" max="99" /></label>
+          <label>Visina (cm)<input name="height" type="number" inputmode="numeric" min="120" max="230" /></label>
+          <label>Početna kilaža<input name="start" type="number" inputmode="decimal" step="0.1" /></label>
+          <label>Ciljna kilaža<input name="goal" type="number" inputmode="decimal" step="0.1" /></label>
+        </div>
+        <label>Pol
+          <select name="sex"><option value="m">Muško</option><option value="f">Žensko</option></select></label>
+        <label>Aktivnost
+          <select name="act">
+            <option value="1.2">Uglavnom sedim</option>
+            <option value="1.375">Malo kretanja</option>
+            <option value="1.55">Ceo dan na nogama</option>
+            <option value="1.725">Na nogama + treninzi 4–5x nedeljno</option>
+            <option value="1.9">Težak fizički posao + treninzi</option>
+          </select></label>
+        <label>Tempo
+          <select name="pace">
+            <option value="550">Umereno (≈ −0,5 kg nedeljno)</option>
+            <option value="800">Brže (≈ −0,75 kg nedeljno)</option>
+            <option value="1000">Maksimalno (≈ −1 kg nedeljno)</option>
+          </select></label>
+        <button class="btn red" type="submit">Sačuvaj</button>
+      </form>
+      <div class="card">
+        <h3>Aplikacija</h3>
+        <button class="btn ghost" id="installBtn" hidden>📲 Instaliraj na telefon</button>
+        <button class="btn ghost" id="exportBtn">⬇️ Sačuvaj rezervnu kopiju</button>
+        <label class="btn ghost file">⬆️ Vrati iz rezervne kopije<input type="file" id="importFile" accept="application/json" hidden /></label>
+        <p class="small">Svi podaci su samo na ovom telefonu. Jednom nedeljno sačuvaj rezervnu kopiju (npr. pošalji je sebi na WhatsApp).</p>
+        <p class="small muted">Vrednosti kalorija su okvirne. Aplikacija je za praćenje i ne zamenjuje savet lekara ili nutricioniste.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- bottom nav -->
+  <nav class="nav" aria-label="Meni">
+    <button class="on" data-go="danas"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Danas</span></button>
+    <button class="fab" id="fab" aria-label="Dodaj hranu"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>
+    <button data-go="napredak"><svg viewBox="0 0 24 24"><path d="M4 19l5-6 4 3 7-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Napredak</span></button>
+    <button data-go="profil"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Plan</span></button>
+  </nav>
+
+  <!-- add food sheet -->
+  <div class="sheet-bg" id="sheetBg"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Dodaj">
+    <div class="grab"></div>
+    <div id="sheetBody"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div id="confetti"></div>
+
+  <script src="js/hrana.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
