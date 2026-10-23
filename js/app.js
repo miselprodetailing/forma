@@ -409,13 +409,31 @@
       toast("Proizvod nije u bazi. Upiši vrednosti sa ambalaže.", 3500); openNewFood({ code });
     } catch (e) { if (mine) return openAmount(mine); toast("Nema interneta. Upiši vrednosti sa ambalaže.", 3500); openNewFood({ code }); }
   }
+  function loadZxing() {
+    return new Promise((ok, bad) => { if (window.ZXing) return ok(); const s = document.createElement("script"); s.src = "js/lib/zxing.min.js"; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
+  }
+  async function openZxing(manual) {
+    openSheet(`<div class="sh-title">Skeniraj barkod</div><div class="scanbox"><video id="cam" playsinline muted autoplay></video><div class="frame"></div><div class="laser"></div></div>${manual}`);
+    let reader = null;
+    stopCam = () => { try { reader && reader.reset(); } catch (e) {} };
+    $("#bcGo").onclick = () => { const c = $("#bc").value.trim(); if (c) { if (stopCam) { stopCam(); stopCam = null; } lookupCode(c); } };
+    try {
+      await loadZxing();
+      const hints = new Map(); hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_128]);
+      reader = new ZXing.BrowserMultiFormatReader(hints);
+      await reader.decodeFromConstraints({ video: { facingMode: "environment" } }, "cam", (res) => {
+        if (res) { vib([40, 30, 40]); const c = res.getText(); if (stopCam) { stopCam(); stopCam = null; } lookupCode(c); }
+      });
+    } catch (e) { toast("Dozvoli pristup kameri (Podešavanja → Safari → Kamera).", 4000); }
+  }
   async function openScanner() {
     const manual = `<div class="fld">Ili upiši broj barkoda<input id="bc" inputmode="numeric" placeholder="npr. 8600..." /></div><button class="btn ghost" id="bcGo">Traži</button>`;
-    if (!("BarcodeDetector" in window) || !navigator.mediaDevices) {
-      openSheet(`<div class="sh-title">Barkod</div><p class="small">Ovaj pregledač ne podržava skeniranje kamerom.</p>${manual}`);
+    if (!navigator.mediaDevices) {
+      openSheet(`<div class="sh-title">Barkod</div><p class="small">Ovaj pregledač ne podržava kameru.</p>${manual}`);
       $("#bcGo").onclick = () => { const c = $("#bc").value.trim(); if (c) lookupCode(c); };
       return;
     }
+    if (!("BarcodeDetector" in window)) return openZxing(manual);
     openSheet(`<div class="sh-title">Skeniraj barkod</div><div class="scanbox"><video id="cam" playsinline muted></video><div class="frame"></div><div class="laser"></div></div>${manual}`);
     $("#bcGo").onclick = () => { const c = $("#bc").value.trim(); if (c) { if (stopCam) stopCam(); lookupCode(c); } };
     try {
@@ -535,6 +553,9 @@
     }; rd.readAsText(file);
   };
   let deferredInstall = null;
+  const IOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const STANDALONE = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  if (IOS && !STANDALONE) { const h = $("#iosHint"); h.hidden = false; h.innerHTML = `<b>📱 Na iPhone-u:</b> otvori u <b>Safari</b>-ju, dole pritisni <b>Podeli</b> <span class="shr">⬆</span>, pa <b>„Dodaj na početni ekran“</b> (Add to Home Screen) i <b>Dodaj</b>.`; }
   window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredInstall = e; $("#installBtn").hidden = false; const wb = $("#wInstall"); if (wb) wb.hidden = false; });
   const doInstall = async () => { if (!deferredInstall) { toast("U Chrome meniju ⋮ izaberi „Instaliraj aplikaciju“"); return; } deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; $("#installBtn").hidden = true; };
   $("#installBtn").onclick = doInstall;
@@ -594,7 +615,8 @@
         <div class="plan-row"><span>Proteini dnevno</span><b id="wPr"></b></div></div>
         <button class="btn red" id="wGo">Kreni 💪</button>
       </div>
-      <button class="btn ghost" id="wInstall" ${deferredInstall ? "" : "hidden"}>📲 Instaliraj na telefon</button>`;
+      <button class="btn ghost" id="wInstall" ${deferredInstall ? "" : "hidden"}>📲 Instaliraj na telefon</button>
+      ${IOS && !STANDALONE ? `<div class="ios-hint"><b>📱 Na iPhone-u:</b> otvori u <b>Safari</b>-ju, dole pritisni <b>Podeli</b> <span class="shr">⬆</span>, pa <b>„Dodaj na početni ekran“</b> (Add to Home Screen) i <b>Dodaj</b>.</div>` : ""}`;
     $("#app").prepend(box); $$(".screen").forEach((s) => (s.style.display = "none")); $(".nav").style.display = "none";
     $("#wf").onsubmit = (e) => {
       e.preventDefault(); const f = e.target, n = (k) => parseFloat(String(f[k].value).replace(",", "."));
