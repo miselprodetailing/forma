@@ -111,53 +111,133 @@ window.FORMA_TRAIN = (X) => {
     }
     openRunner();
   }
+  /* ---------- stick-figure animation (two poses, eased back and forth) */
+  const ANIMS = new Set();
+  function figSvg(q) {
+    const c = (a, b, col, w) => (a && b ? `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>` : "");
+    const back = "#7a7a85", front = "#ffffff", acc = "#ff3b2f";
+    return c(q.n, q.e2, back, 7) + c(q.e2, q.w2, back, 6) + c(q.p, q.k2, back, 8) + c(q.k2, q.f2, back, 7) + c(q.f2, q.t2, back, 5)
+      + c(q.n, q.p, front, 10) + c(q.p, q.k, acc, 9) + c(q.k, q.f, acc, 8) + c(q.f, q.t, acc, 6) + c(q.n, q.e, front, 7) + c(q.e, q.w, front, 6)
+      + `<circle cx="${q.h[0].toFixed(1)}" cy="${q.h[1].toFixed(1)}" r="9" fill="${front}"/>`;
+  }
+  function mountAnim(el, id) {
+    const A = window.ANIM[id]; if (!A) { el.remove(); return; }
+    const keys = Object.keys(A.A).concat(Object.keys(A.B)).filter((k, i, a) => a.indexOf(k) === i);
+    const hold = V[id][5] === "hold";
+    const st = { el, t0: performance.now(), dur: hold ? 3200 : 2400 };
+    const draw = (now) => {
+      const ph = ((now - st.t0) % (st.dur * 2)) / st.dur, x = ph < 1 ? ph : 2 - ph;
+      const e = hold ? Math.min(1, x * 2.4) : 0.5 - Math.cos(Math.PI * x) / 2;
+      const q = {}; keys.forEach((k) => { const a = A.A[k] || A.B[k], b = A.B[k] || A.A[k]; q[k] = [a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e]; });
+      el.innerHTML = `<line x1="0" y1="141" x2="200" y2="141" stroke="#2a2a30" stroke-width="2"/>` + A.props(q) + figSvg(q);
+    };
+    st.draw = draw; ANIMS.add(st); draw(performance.now());
+  }
+  let animRaf = null;
+  const animLoop = (now) => { ANIMS.forEach((s) => { if (!document.body.contains(s.el)) ANIMS.delete(s); else s.draw(now); }); animRaf = ANIMS.size ? requestAnimationFrame(animLoop) : null; };
+  const startAnims = () => { if (!animRaf) animRaf = requestAnimationFrame(animLoop); };
+
+  /* ---------- helpers for set values */
+  const topReps = (r) => { const m = String(r).match(/(\d+)\D+(\d+)/); return m ? +m[2] : parseInt(r, 10) || 10; };
+  const lowReps = (r) => parseInt(String(r), 10) || 10;
+  const secsOf = (r) => { const m = String(r).match(/(\d+)\s*(s|min)/); return m ? (m[2] === "min" ? +m[1] * 60 : +m[1]) : 45; };
+  function suggestKg(id, reps) {
+    const last = T.last[id]; if (!last || !last.length || last[0].kg == null) return null;
+    const kg = last[0].kg, allTop = last.every((x) => (x.reps || 0) >= topReps(reps));
+    return allTop ? { kg: Math.round((kg + (kg >= 40 ? 5 : 2.5)) * 2) / 2, up: true } : { kg, up: false };
+  }
+
   function openRunner() {
     const L = T.live, list = planFor(L.day);
     const cards = list.map((e, i) => {
-      const v = V[e.id], type = v[4], last = T.last[e.id] || [];
+      const v = V[e.id], type = v[5], last = T.last[e.id] || [];
+      const sug = type === "ex" ? suggestKg(e.id, e.reps) : null;
+      const yt = "https://www.youtube.com/results?search_query=" + encodeURIComponent(v[6]);
       const rows = Array.from({ length: Math.max(1, e.sets) }, (_, s) => {
         const cur = (L.sets[e.id] || [])[s] || {}, pv = last[s] || last[last.length - 1] || {};
         const done = cur.done ? " done" : "";
-        if (type === "time") return `<div class="set time${done}" data-e="${e.id}" data-s="${s}"><span class="sn">✓</span><span class="lbl">${esc(e.reps)}</span><button class="chk" aria-label="Gotovo">✓</button></div>`;
-        if (type === "hold") return `<div class="set hold${done}" data-e="${e.id}" data-s="${s}"><span class="sn">${s + 1}</span><input class="in r" inputmode="numeric" placeholder="${pv.reps || parseInt(e.reps) || 30}" value="${cur.reps ?? ""}" /><span class="u">sek</span><button class="chk" aria-label="Serija gotova">✓</button></div>`;
-        return `<div class="set${done}" data-e="${e.id}" data-s="${s}"><span class="sn">${s + 1}</span><input class="in k" inputmode="decimal" placeholder="${pv.kg ?? "kg"}" value="${cur.kg ?? ""}" /><span class="u">kg</span><input class="in r" inputmode="numeric" placeholder="${pv.reps || (String(e.reps).match(/\d+/) || [10])[0]}" value="${cur.reps ?? ""}" /><span class="u">pon</span><button class="chk" aria-label="Serija gotova">✓</button></div>`;
+        if (type === "time") {
+          const sec = secsOf(e.reps);
+          return `<div class="set time${done}" data-e="${e.id}" data-s="${s}" data-sec="${sec}"><button class="go">▶ Start ${Math.round(sec / 60)} min</button><div class="tbar"><i></i><b class="tlbl">${Math.round(sec / 60)}:00</b></div><button class="chk" aria-label="Gotovo">✓</button></div>`;
+        }
+        if (type === "hold") {
+          const sec = cur.reps || pv.reps || secsOf(e.reps);
+          return `<div class="set hold${done}" data-e="${e.id}" data-s="${s}" data-sec="${sec}"><span class="sn">${s + 1}</span><button class="go">▶ Drži ${sec} s</button><div class="tbar"><i></i><b class="tlbl">${sec}</b></div><button class="chk" aria-label="Gotovo">✓</button></div>`;
+        }
+        const kg = cur.kg ?? (sug ? sug.kg : pv.kg ?? ""), reps = cur.reps ?? pv.reps ?? lowReps(e.reps);
+        return `<div class="set${done}" data-e="${e.id}" data-s="${s}"><span class="sn">${s + 1}</span>
+          <div class="num"><button class="mi" data-f="k">−</button><input class="in k" inputmode="decimal" placeholder="?" value="${kg}" /><button class="pl" data-f="k">+</button><small>kg</small></div>
+          <div class="num"><button class="mi" data-f="r">−</button><input class="in r" inputmode="numeric" value="${reps}" /><button class="pl" data-f="r">+</button><small>puta</small></div>
+          <button class="chk" aria-label="Serija gotova">✓</button></div>`;
       }).join("");
-      const lastTxt = last.length && last[0].kg ? `<span class="last">prošli put: ${last.map((x) => `${x.kg ?? "-"}×${x.reps ?? "-"}`).join(", ")}</span>` : "";
+      const hint = type !== "ex" ? "" : sug ? (sug.up ? `<span class="last up">💡 Prošli put je bilo lako, danas probaj <b>${sug.kg} kg</b></span>` : `<span class="last">Prošli put: ${last.map((x) => `${x.kg ?? "?"} kg × ${x.reps ?? "?"}`).join(", ")}</span>`)
+        : `<span class="last new">Prvi put: izaberi težinu koju možeš da podigneš 15 puta, a uradi ${esc(e.reps)}.</span>`;
       return `<div class="ex${e.tendon ? " tendon" : ""}" style="animation-delay:${i * 50}ms">
-        <div class="ex-h"><div><b>${esc(v[0])}</b><small>${esc(v[1])} · ${e.sets > 1 ? e.sets + " × " : ""}${esc(e.reps)}${e.rest ? " · odmor " + e.rest + " s" : ""}</small>${lastTxt}</div><button class="info" aria-label="Kako se radi">?</button></div>
-        <div class="ex-d" hidden><p>${esc(v[2])}</p>${v[3] ? `<p class="note">🦵 ${esc(v[3])}</p>` : ""}</div>
+        <div class="ex-top"><svg class="fig" viewBox="0 0 200 150" data-a="${e.id}"></svg>
+          <div class="ex-h"><b>${esc(v[0])}</b><small class="tech">u teretani: ${esc(v[1])}</small>
+          <small>${e.sets > 1 ? e.sets + " serije × " : ""}${esc(e.reps)}${e.rest ? " · odmor " + e.rest + " s" : ""}</small></div></div>
+        ${hint}
+        <div class="ex-btns"><button class="info">📖 Kako se radi</button><a class="ytb" href="${yt}" target="_blank" rel="noopener">▶ Video</a></div>
+        <div class="ex-d" hidden><p><b>Jača:</b> ${esc(v[2])}</p><p>${esc(v[3])}</p>${v[4] ? `<p class="note">🦵 ${esc(v[4])}</p>` : ""}</div>
         ${rows}</div>`;
     }).join("");
     openSheet(`<div class="sh-title">${esc(window.PROGRAM[L.day].ime)}</div>
-      <div class="wk-top"><span id="wkClock">00:00</span><span id="wkProg">0 / 0 serija</span></div>
-      <div class="ph-note">🦶 ${esc(phase().ime)}. Bol u tetivi do 3/10 je u redu. Ako je jači, stani i smanji.</div>
+      <div class="wk-top"><div class="sw"><small>VREME TRENINGA</small><span id="wkClock">00:00</span></div><span id="wkProg">0 / 0 serija</span></div>
+      <div class="ph-note">🦶 ${esc(phase().ime)}. Blag bol u tetivi do 3 od 10 je u redu. Ako je jači, stani i smanji.</div>
+      <p class="small" style="margin:0 0 10px">Kako ide: uradiš seriju → pritisneš <b>✓</b> → krene odmor → sledeća serija. Brojevi su već upisani, menjaj ih na − / + samo ako treba.</p>
       <div id="exs">${cards}</div>
-      <div class="pain"><b>Bol u levoj tetivi posle treninga</b><input type="range" min="0" max="10" step="1" value="${L.pain ?? 0}" id="painR" /><div class="painv"><span>0 nema</span><b id="painV">${L.pain ?? 0}/10</b><span>10 jak</span></div></div>
+      <div class="pain"><b>Koliko te boli leva tetiva posle treninga?</b><input type="range" min="0" max="10" step="1" value="${L.pain ?? 0}" id="painR" /><div class="painv"><span>0 ne boli</span><b id="painV">${L.pain ?? 0}/10</b><span>10 jako</span></div></div>
       <button class="btn red" id="finish">Završi trening 🏁</button><button class="btn ghost" id="later">Nastaviću kasnije</button><button class="btn danger" id="cancel">Odustani od treninga</button>`);
+    $$("#exs svg.fig").forEach((s) => mountAnim(s, s.dataset.a)); startAnims();
     const total = list.reduce((s, e) => s + Math.max(1, e.sets), 0);
     const prog = () => { const n = Object.values(L.sets).reduce((s, a) => s + a.filter((x) => x && x.done).length, 0); $("#wkProg").textContent = `${n} / ${total} serija`; return n; };
     prog();
     const clk = setInterval(() => { const el = $("#wkClock"); if (!el) return clearInterval(clk); const s = Math.floor((Date.now() - L.t0) / 1000); el.textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; }, 1000);
-    $$(".ex .info").forEach((b) => (b.onclick = () => { const d = b.closest(".ex").querySelector(".ex-d"); d.hidden = !d.hidden; }));
+    $$(".ex .info").forEach((b) => (b.onclick = () => { const d = b.closest(".ex").querySelector(".ex-d"); d.hidden = !d.hidden; b.classList.toggle("on", !d.hidden); }));
+    let runIv = null;
     $$(".set").forEach((row) => {
-      const id = row.dataset.e, s = +row.dataset.s;
+      const id = row.dataset.e, s = +row.dataset.s, e = list.find((x) => x.id === id);
       const store = () => { const a = (L.sets[id] ||= []); const k = row.querySelector(".k"), r = row.querySelector(".r");
-        a[s] = { ...(a[s] || {}), kg: k ? (k.value ? parseFloat(k.value.replace(",", ".")) : k.placeholder !== "kg" ? parseFloat(k.placeholder) : null) : undefined, reps: r ? (r.value ? parseInt(r.value, 10) : parseInt(r.placeholder, 10)) : undefined }; };
-      $$("input", row).forEach((inp) => (inp.onchange = () => { store(); save(); }));
-      row.querySelector(".chk").onclick = () => {
-        store(); const a = L.sets[id]; a[s].done = !a[s].done; row.classList.toggle("done", a[s].done); save(); vib(20);
+        a[s] = { ...(a[s] || {}), kg: k ? (k.value !== "" ? parseFloat(k.value.replace(",", ".")) : null) : undefined, reps: r ? parseInt(r.value, 10) || 0 : row.dataset.sec ? +row.dataset.sec : undefined }; };
+      const spread = () => { const k = row.querySelector(".k"); if (!k || k.value === "") return;
+        $$(`.set[data-e="${id}"]`).forEach((o) => { if (+o.dataset.s > s && !o.classList.contains("done")) { const ok = o.querySelector(".k"); if (ok && (ok.value === "" || ok.dataset.auto)) { ok.value = k.value; ok.dataset.auto = "1"; ok.dispatchEvent(new Event("change")); } } }); };
+      $$("input", row).forEach((inp) => (inp.onchange = (ev) => { if (ev.isTrusted) delete inp.dataset.auto; store(); save(); if (inp.classList.contains("k")) spread(); }));
+      $$(".mi, .pl", row).forEach((btn) => (btn.onclick = () => {
+        const inp = row.querySelector(btn.dataset.f === "k" ? ".k" : ".r"), up = btn.classList.contains("pl");
+        let v = parseFloat(String(inp.value).replace(",", ".")) || 0;
+        v = btn.dataset.f === "k" ? Math.max(0, v + (up ? 2.5 : -2.5)) : Math.max(0, v + (up ? 1 : -1));
+        inp.value = btn.dataset.f === "k" ? r1(v) : r0(v); delete inp.dataset.auto; vib(8); store(); save(); if (btn.dataset.f === "k") spread();
+      }));
+      const markDone = (force) => {
+        store(); const a = L.sets[id]; a[s].done = force === undefined ? !a[s].done : force; row.classList.toggle("done", a[s].done); save(); vib(20);
         const n = prog();
-        const e = list.find((x) => x.id === id);
         if (a[s].done && e.rest && n < total) restTimer(e.rest);
-        if (n === total) { confetti(); toast("💪 Sve serije gotove! Završi trening."); }
+        if (n === total) { confetti(); toast("💪 Sve serije gotove! Pritisni Završi trening."); }
+      };
+      row.querySelector(".chk").onclick = () => markDone();
+      const go = row.querySelector(".go");
+      if (go) go.onclick = () => {
+        if (row.classList.contains("running")) { clearInterval(runIv); row.classList.remove("running"); go.textContent = "▶ Nastavi"; return; }
+        $$(".set.running").forEach((r) => r.classList.remove("running")); clearInterval(runIv);
+        const total = +row.dataset.sec; let left = row._left ?? total; const bar = row.querySelector(".tbar i"), lbl = row.querySelector(".tlbl");
+        row.classList.add("running"); go.textContent = "⏸ Pauza";
+        const end = Date.now() + left * 1000;
+        const tick = () => {
+          left = Math.max(0, (end - Date.now()) / 1000); row._left = left;
+          bar.style.width = (1 - left / total) * 100 + "%";
+          lbl.textContent = total >= 60 ? `${Math.floor(Math.ceil(left) / 60)}:${String(Math.ceil(left) % 60).padStart(2, "0")}` : Math.ceil(left);
+          if (left <= 3.2 && left > 0 && total < 60) vib(25);
+          if (left <= 0) { clearInterval(runIv); row.classList.remove("running"); row._left = 0; go.textContent = "✓ Gotovo"; vib([200, 80, 200]); toast("✅ Vreme je isteklo, bravo!"); markDone(true); }
+        };
+        runIv = setInterval(tick, 200); tick();
       };
     });
-    $("#painR").oninput = (e) => { L.pain = +e.target.value; $("#painV").textContent = L.pain + "/10"; save(); };
-    $("#later").onclick = () => { clearInterval(clk); closeSheet(); render(); };
-    $("#cancel").onclick = () => { if (!confirm("Obrisati ovaj trening?")) return; clearInterval(clk); T.live = null; save(); closeSheet(); render(); };
+    $("#painR").oninput = (ev) => { L.pain = +ev.target.value; $("#painV").textContent = L.pain + "/10"; save(); };
+    $("#later").onclick = () => { clearInterval(clk); clearInterval(runIv); closeSheet(); render(); };
+    $("#cancel").onclick = () => { if (!confirm("Obrisati ovaj trening?")) return; clearInterval(clk); clearInterval(runIv); T.live = null; save(); closeSheet(); render(); };
     $("#finish").onclick = () => {
       const n = prog(); if (!n && !confirm("Nijedna serija nije čekirana. Ipak sačuvati?")) return;
-      clearInterval(clk);
+      clearInterval(clk); clearInterval(runIv);
       const min = Math.max(15, Math.round((Date.now() - L.t0) / 60000));
       const sess = { id: uid(), d: today(), t: Date.now(), day: L.day, min: Math.min(min, 150), sets: n, kcal: kcalFor(5.0, Math.min(min, 150)), ex: L.sets, pain: L.pain ?? 0 };
       if (!T.start) T.start = today();
@@ -165,7 +245,7 @@ window.FORMA_TRAIN = (X) => {
       Object.entries(L.sets).forEach(([id, arr]) => { const done = arr.filter((x) => x && x.done); if (done.length) T.last[id] = done.map(({ kg, reps }) => ({ kg, reps })); });
       T.pain.push({ d: today(), v: L.pain ?? 0 });
       T.live = null; save(); closeSheet(); render(); confetti(); vib([40, 40, 80]);
-      toast(`🏁 Trening sačuvan: ${sess.min} min · ${fmt(sess.kcal)} kcal${(L.pain ?? 0) > 3 ? " · ⚠️ bol je jak, sledeći put lakše" : ""}`, 4000);
+      toast(`🏁 Trening sačuvan: ${sess.min} min · ${fmt(sess.kcal)} kcal${(L.pain ?? 0) > 3 ? " · ⚠️ tetiva je bolela, sledeći put lakše" : ""}`, 4000);
       X.checkBadges(); X.renderDay();
     };
     history.pushState({ sheet: 1 }, "");

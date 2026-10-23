@@ -1,5 +1,5 @@
 /* FORMA service worker: aplikacija radi i bez interneta */
-const V = "forma-v3";
+const V = "forma-v4";
 const SHELL = ["./", "index.html", "css/app.css", "js/app.js", "js/hrana.js", "js/trening.js", "js/trening-data.js", "manifest.webmanifest",
   "assets/fonts/anton-latin.woff2", "assets/fonts/anton-latin-ext.woff2", "assets/fonts/mont-latin.woff2", "assets/fonts/mont-latin-ext.woff2",
   "assets/icons/icon-192.png", "assets/icons/icon-512.png"];
