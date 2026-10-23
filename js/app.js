@@ -4,6 +4,7 @@
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const KEY = "forma.v1";
+  let TR = null;
   const MEALS = [["dorucak", "Doručak", "🍳"], ["rucak", "Ručak", "🍲"], ["vecera", "Večera", "🍽️"], ["uzina", "Užina", "🍎"]];
   const DAYS = ["Nedelja", "Ponedeljak", "Utorak", "Sreda", "Četvrtak", "Petak", "Subota"];
   const DAYS_S = ["N", "P", "U", "S", "Č", "P", "S"];
@@ -98,12 +99,18 @@
     ["k15", "🦾", "−15 kg", "Skinuo 15 kg"],
     ["k20", "👑", "−20 kg", "Skinuo 20 kg"],
     ["goal", "🥇", "CILJ!", "Stigao do cilja"],
+    ["t1", "🏋️", "Prvi trening", "Krenuo si!"],
+    ["t10", "💥", "10 treninga", "Postaje navika"],
+    ["t25", "🔩", "25 treninga", "Gvozdena volja"],
+    ["t50", "🦍", "50 treninga", "Mašina"],
+    ["wk4", "📅", "4 nedelje", "3+ treninga 4 nedelje zaredom"],
+    ["km50", "🥾", "50 km", "Prehodao 50 km"],
   ];
   function checkBadges() {
     const got = [], st = streak(), lost = S.profile.start - curWeight();
     const has = { first: Object.values(S.days).some((d) => d.items.length), s3: st >= 3, s7: st >= 7, s14: st >= 14, s30: st >= 30,
       w1: Object.values(S.days).some((d) => d.water >= plan().water), k2: lost >= 2, k5: lost >= 5, k10: lost >= 10, k15: lost >= 15, k20: lost >= 20,
-      goal: S.weights.length > 0 && curWeight() <= S.profile.goal };
+      goal: S.weights.length > 0 && curWeight() <= S.profile.goal, ...(TR ? TR.badgeHas() : {}) };
     BADGES.forEach(([id, ic, nm]) => { if (has[id] && !S.badges[id]) { S.badges[id] = today(); got.push(`${ic} ${nm}`); } });
     if (got.length) { save(); setTimeout(() => { confetti(); vib([30, 40, 30]); toast("Nova nagrada: " + got.join(", "), 3500); }, 700); }
   }
@@ -127,6 +134,8 @@
   const C = 2 * Math.PI * 112;
   function renderDay() {
     const P = plan(), T = tot(cur), d = day(cur);
+    const burn = TR ? TR.dayBurn(cur) : 0, bon = TR ? TR.bonus(cur) : 0;
+    P.target += bon;
     const isToday = cur === today();
     const dt = dateOf(cur);
     $("#dayKick").textContent = isToday ? "DANAS" : cur === addDays(today(), -1) ? "JUČE" : DAYS[dt.getDay()].toUpperCase();
@@ -142,6 +151,7 @@
     const rn = $("#ringNum"); rn.classList.toggle("bad", left < 0); countTo(rn, Math.abs(left));
     countTo($("#stTarget"), P.target); countTo($("#stEaten"), T.kcal);
     $("#stStreak").textContent = streak() + "🔥";
+    const al0 = $("#actLine"); al0.hidden = !burn; al0.innerHTML = burn ? `🏋️ Aktivnost danas: <b>${fmt(burn)} kcal</b>${bon ? ` · +${fmt(bon)} vraćeno u cilj` : ""}` : "";
     [["P", T.p, P.prot], ["C", T.c, P.carb], ["F", T.f, P.fat]].forEach(([k, v, t]) => {
       countTo($("#m" + k), v, 700); $("#m" + k + "t").textContent = t; $("#b" + k).style.width = Math.min(100, (v / t) * 100) + "%";
     });
@@ -316,7 +326,7 @@
     openAmount(f, it); history.pushState({ sheet: 1 }, "");
   }
   function afterAdd(isNew = true) {
-    const before = plan().target;
+    const before = plan().target + (TR ? TR.bonus(cur) : 0);
     renderDay(); vib(15);
     const T = tot(cur).kcal;
     if (isNew) {
@@ -528,12 +538,15 @@
   const doInstall = async () => { if (!deferredInstall) { toast("U Chrome meniju ⋮ izaberi „Instaliraj aplikaciju“"); return; } deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; $("#installBtn").hidden = true; };
   $("#installBtn").onclick = doInstall;
 
+  /* ================= TRENING ================= */
+  TR = window.FORMA_TRAIN({ $, $$, S, save, today, addDays, dateOf, fmt, r0, r1, esc, uid, vib, toast, confetti, countTo, openSheet, closeSheet, curWeight, MONTHS, checkBadges, renderDay: () => renderDay() });
+
   /* ================= NAV ================= */
   function go(name) {
     $$(".screen").forEach((s) => s.classList.toggle("on", s.id === "scr-" + name));
     $$(".nav [data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === name));
     window.scrollTo({ top: 0 });
-    if (name === "danas") renderDay(); if (name === "napredak") renderProgress(); if (name === "profil") renderProfile();
+    if (name === "danas") renderDay(); if (name === "napredak") { renderProgress(); TR.renderWaist(); } if (name === "trening") TR.render(); if (name === "profil") renderProfile();
   }
   $$(".nav [data-go]").forEach((b) => (b.onclick = () => { vib(8); go(b.dataset.go); }));
   $("#fab").onclick = () => { vib(10); openAdd(cur === today() ? defaultMeal() : "rucak"); };

@@ -1,6 +1,6 @@
 /* FORMA service worker: aplikacija radi i bez interneta */
-const V = "forma-v2";
-const SHELL = ["./", "index.html", "css/app.css", "js/app.js", "js/hrana.js", "manifest.webmanifest",
+const V = "forma-v3";
+const SHELL = ["./", "index.html", "css/app.css", "js/app.js", "js/hrana.js", "js/trening.js", "js/trening-data.js", "manifest.webmanifest",
   "assets/fonts/anton-latin.woff2", "assets/fonts/anton-latin-ext.woff2", "assets/fonts/mont-latin.woff2", "assets/fonts/mont-latin-ext.woff2",
   "assets/icons/icon-192.png", "assets/icons/icon-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(V).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
