@@ -19,6 +19,7 @@
   let S;
   try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY) || "null") || {}); } catch (e) { S = fresh(); }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast("Ne mogu da sačuvam podatke na telefon."); } };
+  if (S.showTrain === undefined) S.showTrain = !!S.onboarded;
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
   /* ---------- dates */
@@ -542,7 +543,17 @@
   TR = window.FORMA_TRAIN({ $, $$, S, save, today, addDays, dateOf, fmt, r0, r1, esc, uid, vib, toast, confetti, countTo, openSheet, closeSheet, curWeight, MONTHS, checkBadges, renderDay: () => renderDay() });
 
   /* ================= NAV ================= */
+  function applyTrain() {
+    const on = !!S.showTrain;
+    const b = $('.nav [data-go="trening"]'); if (b) b.hidden = !on;
+    $(".nav").classList.toggle("notrain", !on);
+    const br = $("#bonusRow"); if (br) br.hidden = !on;
+    const st = $("#showTrain"); if (st) st.checked = on;
+  }
+  $("#showTrain").onchange = (e) => { S.showTrain = e.target.checked; save(); applyTrain(); toast(S.showTrain ? "🏋️ Deo za trening je uključen" : "Deo za trening je sakriven"); };
   function go(name) {
+    applyTrain();
+    if (name === "trening" && !S.showTrain) name = "danas";
     $$(".screen").forEach((s) => s.classList.toggle("on", s.id === "scr-" + name));
     $$(".nav [data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === name));
     window.scrollTo({ top: 0 });
@@ -571,7 +582,8 @@
         </div>
         <label>Pol<select name="sex"><option value="m">Muško</option><option value="f">Žensko</option></select></label>
         <label>Aktivnost<select name="act"><option value="1.2">Uglavnom sedim</option><option value="1.375">Malo kretanja</option><option value="1.55" selected>Ceo dan na nogama</option><option value="1.725">Na nogama + treninzi 4–5x nedeljno</option><option value="1.9">Težak fizički posao + treninzi</option></select></label>
-        <label>Tempo<select name="pace"><option value="550">Umereno (≈ −0,5 kg nedeljno)</option><option value="800">Brže (≈ −0,75 kg nedeljno)</option><option value="1000" selected>Maksimalno (≈ −1 kg nedeljno)</option></select></label>
+        <label>Tempo<select name="pace"><option value="550" selected>Umereno (≈ −0,5 kg nedeljno)</option><option value="800">Brže (≈ −0,75 kg nedeljno)</option><option value="1000">Maksimalno (≈ −1 kg nedeljno)</option></select></label>
+        <label class="tgl"><input type="checkbox" name="train" /><span></span>Uključi i deo za trening u teretani</label>
         <button class="btn red" type="submit">Izračunaj moj plan</button>
       </form>
       <div id="wRes" hidden>
@@ -587,6 +599,7 @@
     $("#wf").onsubmit = (e) => {
       e.preventDefault(); const f = e.target, n = (k) => parseFloat(String(f[k].value).replace(",", "."));
       Object.assign(S.profile, { age: n("age"), height: n("height"), start: n("start"), goal: n("goal"), sex: f.sex.value, act: n("act"), pace: n("pace") });
+      S.showTrain = f.train.checked;
       const P = plan();
       $("#wf").hidden = true; $("#wRes").hidden = false;
       $("#wTd").textContent = fmt(P.tdee) + " kcal"; $("#wDf").textContent = "−" + fmt(P.def) + " kcal"; $("#wRt").textContent = "≈ −" + r1(P.rate) + " kg nedeljno"; $("#wPr").textContent = P.prot + " g";
