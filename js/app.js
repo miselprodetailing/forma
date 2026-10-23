@@ -53,6 +53,8 @@
   const BASE = window.HRANA.map(([n, kcal, p, c, f, cat, pn, pg], i) => ({ id: "b" + i, n, kcal, p, c, f, cat, pn, pg }));
   const allFoods = () => [...S.custom, ...BASE];
   const findFood = (id) => allFoods().find((x) => x.id === id);
+  const LIQ = ["Pića", "Alkohol"];
+  const U = (f) => f.u || (LIQ.includes(f.cat) ? "ml" : "g");
 
   /* ---------- helpers: animated numbers, toast, confetti */
   function countTo(el, to, dur = 900, suffix = "") {
@@ -257,8 +259,8 @@
     if (!rows.length) { ul.innerHTML = `<li class="empty" style="cursor:default">Nema rezultata. Dodaj kao novu namirnicu ili skeniraj barkod.</li>`; return; }
     rows.slice(0, 60).forEach((f, i) => {
       const li = document.createElement("li"); li.style.animationDelay = Math.min(i, 12) * 18 + "ms";
-      const sub = f.last ? `zadnji put: ${esc(f.last.qty)}` : `${f.pn} = ${f.pg} g · ${f.cat || "moje"}`;
-      li.innerHTML = `<div class="nm"><b>${esc(f.n)}</b><small>${sub}</small></div><div class="kc">${fmt(f.kcal)}<small>kcal/100g</small></div><span class="plus">+</span>`;
+      const sub = f.last ? `zadnji put: ${esc(f.last.qty)}` : `${f.pn} = ${f.pg} ${U(f)} · ${f.cat || "moje"}`;
+      li.innerHTML = `<div class="nm"><b>${esc(f.n)}</b><small>${sub}</small></div><div class="kc">${fmt(f.kcal)}<small>kcal/100${U(f)}</small></div><span class="plus">+</span>`;
       li.onclick = () => openAmount(f, null, f.last);
       ul.appendChild(li);
     });
@@ -270,10 +272,11 @@
     let mode = unitPortion ? "por" : "g";
     let val = edit ? edit.amt : last ? last.amt : mode === "por" ? 1 : 100;
     let meal = edit ? edit.meal : addMeal;
-    openSheet(`<div class="amt-name">${esc(f.n)}</div><div class="amt-sub">${fmt(f.kcal)} kcal na 100 g · ${f.pn} = ${f.pg} g</div>
+    const u = U(f);
+    openSheet(`<div class="amt-name">${esc(f.n)}</div><div class="amt-sub">${fmt(f.kcal)} kcal na 100 ${u} · ${f.pn} = ${f.pg} ${u}</div>
       <div class="amt-kcal"><b id="aK">0</b><span>kcal</span></div>
       <div class="amt-mac"><div><b id="aP">0</b>proteini</div><div><b id="aC">0</b>ugljeni h.</div><div><b id="aF">0</b>masti</div></div>
-      <div class="unit"><button data-u="por">${esc(f.pn)} (${f.pg} g)</button><button data-u="g">grami</button></div>
+      <div class="unit"><button data-u="por">${esc(f.pn)} (${f.pg} ${u})</button><button data-u="g">${u === "ml" ? "mililitri" : "grami"}</button></div>
       <div class="stepper"><button id="mn">−</button><input id="av" inputmode="decimal" /><button id="pl">+</button></div>
       <div class="quick" id="qk"></div>
       <div class="mealpick" id="mp">${MEALS.map(([k, n]) => `<button data-m="${k}">${n}</button>`).join("")}</div>
@@ -286,7 +289,7 @@
       countTo($("#aK"), k, 350); $("#aP").textContent = r1((f.p * g) / 100); $("#aC").textContent = r1((f.c * g) / 100); $("#aF").textContent = r1((f.f * g) / 100);
       $$(".unit button").forEach((b) => b.classList.toggle("on", b.dataset.u === mode));
       $$("#mp button").forEach((b) => b.classList.toggle("on", b.dataset.m === meal));
-      $("#qk").innerHTML = (mode === "por" ? [0.5, 1, 1.5, 2, 3] : [50, 100, 150, 200, 300]).map((x) => `<button data-q="${x}">${mode === "por" ? x + " " + f.pn : x + " g"}</button>`).join("");
+      $("#qk").innerHTML = (mode === "por" ? [0.5, 1, 1.5, 2, 3] : u === "ml" ? [100, 200, 250, 330, 500] : [50, 100, 150, 200, 300]).map((x) => `<button data-q="${x}">${mode === "por" ? x + " " + f.pn : x + " " + u}</button>`).join("");
       $$("#qk button").forEach((b) => (b.onclick = () => { val = +b.dataset.q; vib(); upd(); }));
     };
     $$(".unit button").forEach((b) => (b.onclick = () => { if (b.dataset.u === mode) return; val = b.dataset.u === "g" ? r0(val * f.pg) : r1(val / f.pg) || 1; mode = b.dataset.u; upd(); }));
@@ -298,7 +301,7 @@
     $$("#mp button").forEach((b) => (b.onclick = () => { meal = b.dataset.m; upd(); }));
     $("#ok").onclick = () => {
       const g = grams(); if (!(g > 0)) { toast("Upiši količinu"); return; }
-      const qty = mode === "por" ? `${r1(val)} ${f.pn} (${r0(g)} g)` : `${r0(g)} g`;
+      const qty = mode === "por" ? `${r1(val)} ${f.pn} (${r0(g)} ${u})` : `${r0(g)} ${u}`;
       const it = { id: edit ? edit.id : uid(), fid: f.id, n: f.n, g, amt: val, mode, qty, meal, kcal: (f.kcal * g) / 100, p: (f.p * g) / 100, c: (f.c * g) / 100, f: (f.f * g) / 100, t: Date.now() };
       const d = day(cur);
       if (edit) d.items[d.items.findIndex((x) => x.id === edit.id)] = it; else d.items.push(it);
@@ -349,15 +352,20 @@
   function openNewFood(pre = {}) {
     openSheet(`<div class="sh-title">Nova namirnica</div>
       <div class="fld">Naziv<input id="nn" value="${esc(pre.n || "")}" placeholder="npr. Jogurt Moja Kravica" /></div>
-      <p class="small" style="margin:10px 0 0">Vrednosti na 100 g (sa ambalaže, deo „hranljiva vrednost na 100 g“):</p>
+      <div class="unit" id="nu" style="margin-top:12px"><button type="button" data-u="g">Hrana (na 100 g)</button><button type="button" data-u="ml">Piće (na 100 ml)</button></div>
+      <p class="small" style="margin:0">Vrednosti sa ambalaže, deo „hranljiva vrednost na 100 g / 100 ml“:</p>
       <div class="grid2"><div class="fld">Kalorije<input id="nk" inputmode="decimal" value="${pre.kcal ?? ""}" /></div><div class="fld">Proteini (g)<input id="np" inputmode="decimal" value="${pre.p ?? ""}" /></div>
       <div class="fld">Ugljeni hidrati (g)<input id="nc" inputmode="decimal" value="${pre.c ?? ""}" /></div><div class="fld">Masti (g)<input id="nf" inputmode="decimal" value="${pre.f ?? ""}" /></div></div>
-      <div class="grid2"><div class="fld">Porcija se zove<input id="npn" value="${esc(pre.pn || "porcija")}" /></div><div class="fld">Grama u porciji<input id="npg" inputmode="decimal" value="${pre.pg || 100}" /></div></div>
+      <div class="grid2"><div class="fld">Porcija se zove<input id="npn" value="${esc(pre.pn || "porcija")}" /></div><div class="fld" id="npgL">Količina u porciji<input id="npg" inputmode="decimal" value="${pre.pg || 100}" /></div></div>
       <button class="btn red" id="ok">Sačuvaj i dodaj</button>`);
+    let nu = pre.u || "g";
+    const setU = () => { $$("#nu button").forEach((b) => b.classList.toggle("on", b.dataset.u === nu)); $("#npgL").firstChild.textContent = nu === "ml" ? "Mililitara u porciji" : "Grama u porciji"; };
+    $$("#nu button").forEach((b) => (b.onclick = () => { nu = b.dataset.u; if (nu === "ml" && $("#npn").value === "porcija") { $("#npn").value = "flaša"; } setU(); }));
+    setU();
     $("#ok").onclick = () => {
       const num = (id) => parseFloat(String($(id).value).replace(",", ".")) || 0;
       const n = $("#nn").value.trim(); if (!n || !(num("#nk") >= 0)) { toast("Upiši naziv i kalorije"); return; }
-      const f = { id: "c" + uid(), n, kcal: num("#nk"), p: num("#np"), c: num("#nc"), f: num("#nf"), cat: "moje", pn: $("#npn").value.trim() || "porcija", pg: num("#npg") || 100, code: pre.code };
+      const f = { id: "c" + uid(), n, kcal: num("#nk"), p: num("#np"), c: num("#nc"), f: num("#nf"), cat: "moje", u: nu, uv: 2, pn: $("#npn").value.trim() || "porcija", pg: num("#npg") || 100, code: pre.code };
       S.custom.unshift(f); save(); openAmount(f);
     };
   }
@@ -365,20 +373,30 @@
   /* ---------- barcode scanner (Open Food Facts) */
   async function lookupCode(code) {
     const mine = S.custom.find((f) => f.code === code);
-    if (mine) return openAmount(mine);
+    if (mine && mine.uv) return openAmount(mine);
     toast("Tražim proizvod…", 4000);
     try {
-      const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,nutriments,serving_quantity`);
+      const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,nutriments,serving_quantity,serving_quantity_unit,serving_size,quantity,product_quantity,product_quantity_unit,categories_tags`);
       const j = await r.json();
       if (j.status === 1 && j.product && j.product.nutriments && j.product.nutriments["energy-kcal_100g"] != null) {
         const p = j.product, nt = p.nutriments;
-        const f = { id: "c" + uid(), code, n: [p.product_name, p.brands && p.brands.split(",")[0]].filter(Boolean).join(" · ") || "Proizvod " + code,
-          kcal: r1(nt["energy-kcal_100g"]), p: r1(nt.proteins_100g || 0), c: r1(nt.carbohydrates_100g || 0), f: r1(nt.fat_100g || 0), cat: "skenirano",
-          pn: p.serving_quantity ? "porcija" : "pakovanje", pg: r0(p.serving_quantity || 100) };
-        S.custom.unshift(f); save(); toast("✅ Pronađeno: " + f.n); openAmount(f); return;
+        const qtxt = String(p.quantity || "") + " " + String(p.serving_size || "");
+        const liquid = /\b\d+([.,]\d+)?\s*(ml|cl|dl|l)\b/i.test(qtxt) || ["ml", "l", "cl", "dl"].includes(String(p.product_quantity_unit || p.serving_quantity_unit || "").toLowerCase())
+          || (p.categories_tags || []).some((t) => /beverage|drink|water|juice|soda|beer|wine/i.test(t));
+        // package size in ml / g
+        let pack = parseFloat(p.product_quantity) || 0;
+        const m = String(p.quantity || "").replace(",", ".").match(/(\d+(\.\d+)?)\s*(ml|cl|dl|l|g|kg)\b/i);
+        if (m) { const v = parseFloat(m[1]), un = m[3].toLowerCase(); pack = un === "l" ? v * 1000 : un === "dl" ? v * 100 : un === "cl" ? v * 10 : un === "kg" ? v * 1000 : v; }
+        const u = liquid ? "ml" : "g";
+        const pn = liquid ? (pack >= 1000 ? "flaša " + r1(pack / 1000) + " L" : pack >= 300 && pack <= 500 ? "limenka/flaša" : "pakovanje") : p.serving_quantity ? "porcija" : "pakovanje";
+        const pg = r0(liquid ? pack || p.serving_quantity || 250 : p.serving_quantity || pack || 100);
+        const f = { id: mine ? mine.id : "c" + uid(), code, u, uv: 2, n: [p.product_name, p.brands && p.brands.split(",")[0]].filter(Boolean).join(" · ") || "Proizvod " + code,
+          kcal: r1(nt["energy-kcal_100g"]), p: r1(nt.proteins_100g || 0), c: r1(nt.carbohydrates_100g || 0), f: r1(nt.fat_100g || 0), cat: liquid ? "Pića" : "skenirano", pn, pg };
+        S.custom = S.custom.filter((x) => x.code !== code); S.custom.unshift(f); save(); toast("✅ Pronađeno: " + f.n); openAmount(f); return;
       }
+      if (mine) return openAmount(mine);
       toast("Proizvod nije u bazi. Upiši vrednosti sa ambalaže.", 3500); openNewFood({ code });
-    } catch (e) { toast("Nema interneta. Upiši vrednosti sa ambalaže.", 3500); openNewFood({ code }); }
+    } catch (e) { if (mine) return openAmount(mine); toast("Nema interneta. Upiši vrednosti sa ambalaže.", 3500); openNewFood({ code }); }
   }
   async function openScanner() {
     const manual = `<div class="fld">Ili upiši broj barkoda<input id="bc" inputmode="numeric" placeholder="npr. 8600..." /></div><button class="btn ghost" id="bcGo">Traži</button>`;
