@@ -555,9 +555,14 @@
   let deferredInstall = null;
   const IOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const STANDALONE = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-  if (IOS && !STANDALONE) { const h = $("#iosHint"); h.hidden = false; h.innerHTML = `<b>📱 Na iPhone-u:</b> otvori u <b>Safari</b>-ju, dole pritisni <b>Podeli</b> <span class="shr">⬆</span>, pa <b>„Dodaj na početni ekran“</b> (Add to Home Screen) i <b>Dodaj</b>.`; }
+  if (IOS && !STANDALONE) { const h = $("#iosHint"); h.hidden = false; h.innerHTML = `<b>📱 Na iPhone-u:</b> pritisni <b>Podeli</b> <span class="shr">⬆</span> (u Safari-ju dole, u Chrome-u gore desno), pa <b>„Dodaj na početni ekran“</b> i <b>Dodaj</b>.`; }
   window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredInstall = e; $("#installBtn").hidden = false; const wb = $("#wInstall"); if (wb) wb.hidden = false; });
-  const doInstall = async () => { if (!deferredInstall) { toast("U Chrome meniju ⋮ izaberi „Instaliraj aplikaciju“"); return; } deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; $("#installBtn").hidden = true; };
+  const doInstall = async () => {
+    if (!deferredInstall) {
+      if (IOS) toast(/CriOS/i.test(navigator.userAgent) ? "Gore desno pritisni Podeli ⬆, pa „Dodaj na početni ekran“" : "Dole pritisni Podeli ⬆, pa „Dodaj na početni ekran“", 6000);
+      else toast("U Chrome meniju ⋮ izaberi „Instaliraj aplikaciju“", 5000);
+      return;
+    } deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; $("#installBtn").hidden = true; };
   $("#installBtn").onclick = doInstall;
 
   /* ================= TRENING ================= */
@@ -616,7 +621,7 @@
         <button class="btn red" id="wGo">Kreni 💪</button>
       </div>
       <button class="btn ghost" id="wInstall" ${deferredInstall ? "" : "hidden"}>📲 Instaliraj na telefon</button>
-      ${IOS && !STANDALONE ? `<div class="ios-hint"><b>📱 Na iPhone-u:</b> otvori u <b>Safari</b>-ju, dole pritisni <b>Podeli</b> <span class="shr">⬆</span>, pa <b>„Dodaj na početni ekran“</b> (Add to Home Screen) i <b>Dodaj</b>.</div>` : ""}`;
+      ${IOS && !STANDALONE ? `<div class="ios-hint"><b>📱 Na iPhone-u:</b> pritisni <b>Podeli</b> <span class="shr">⬆</span> (u Safari-ju dole, u Chrome-u gore desno), pa <b>„Dodaj na početni ekran“</b> i <b>Dodaj</b>.</div>` : ""}`;
     $("#app").prepend(box); $$(".screen").forEach((s) => (s.style.display = "none")); $(".nav").style.display = "none";
     $("#wf").onsubmit = (e) => {
       e.preventDefault(); const f = e.target, n = (k) => parseFloat(String(f[k].value).replace(",", "."));
