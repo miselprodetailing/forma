@@ -251,6 +251,7 @@ window.HRANA = [
   ["Šećer u kafi (kašičica)", 400, 0, 100, 0, "Dodaci", "kašičica", 5],
   ["Pavlaka za kuvanje", 195, 2.5, 4, 19, "Dodaci", "kašika", 20],
   // dodato kasnije (nove stavke uvek na kraj liste, da se ne pomere stare)
-  ["Kakao sa mlekom (sa šećerom)", 80, 3.4, 11, 2.8, "Pića", "šolja", 250],
-  ["Kakao sa mlekom (bez šećera)", 66, 3.6, 6, 3, "Pića", "šolja", 250],
+  ["Kakao sa vodom (bez šećera)", 9, 0.8, 2.3, 0.6, "Pića", "šolja", 250],
+  ["Kakao sa vodom i šećerom (2 kašičice)", 25, 0.8, 6.3, 0.6, "Pića", "šolja", 250],
+  ["Kakao prah (čist)", 228, 20, 23, 14, "Dodaci", "kašičica", 5],
 ];
