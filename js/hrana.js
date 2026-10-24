@@ -254,4 +254,8 @@ window.HRANA = [
   ["Kakao sa vodom (bez šećera)", 9, 0.8, 2.3, 0.6, "Pića", "šolja", 250],
   ["Kakao sa vodom i šećerom (2 kašičice)", 25, 0.8, 6.3, 0.6, "Pića", "šolja", 250],
   ["Kakao prah (čist)", 228, 20, 23, 14, "Dodaci", "kašičica", 5],
+  ["Kafa sa 1 kašičicom šećera", 22, 0.1, 5, 0, "Pića", "šolja", 100],
+  ["Kafa sa 2 kašičice šećera", 42, 0.1, 10, 0, "Pića", "šolja", 100],
+  ["Kafa sa 3 kašičice šećera", 62, 0.1, 15, 0, "Pića", "šolja", 100],
+  ["Kafa sa mlekom i 2 kašičice šećera", 59, 1.5, 9, 1.2, "Pića", "šolja", 150],
 ];
