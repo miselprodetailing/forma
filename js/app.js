@@ -278,41 +278,67 @@
   }
 
   /* ---------- amount */
+  /* chocolate & bars: offer rows / pieces instead of the whole package */
+  const CHOC = /čokolad|cokolad|chocolate|schokolade|milka|lindt|ritter|najlep|toblerone|kinder|choco|kraš|dorina|jaffa|tablet/i;
+  function ensureParts(f) {
+    if (f.alt || !(f.cat === "skenirano" || f.cat === "moje") || !CHOC.test(f.n)) return;
+    f.rows = f.rows || 6; f.pack = f.pack || f.pg || 100;
+    f.alt = [{ n: "red", g: r1(f.pack / f.rows) }, { n: "kocka", g: r1(f.pack / (f.rows * 4)) }];
+    save();
+  }
+  const PL = { red: ["red", "reda", "redova"], kocka: ["kocka", "kocke", "kocki"] };
+  const plural = (n, w) => { const f = PL[w]; if (!f || n % 1) return w; const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? f[0] : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? f[1] : f[2]; };
   function openAmount(f, edit, last) {
-    const unitPortion = edit ? edit.mode === "por" : last ? last.mode === "por" : f.pn && f.pg && f.pn !== "g";
-    let mode = unitPortion ? "por" : "g";
-    let val = edit ? edit.amt : last ? last.amt : mode === "por" ? 1 : 100;
-    let meal = edit ? edit.meal : addMeal;
+    ensureParts(f);
     const u = U(f);
+    // units: [key, label, grams per unit]
+    const units = [["por", f.pn, f.pg], ...(f.alt || []).map((a, i) => ["a" + i, a.n, a.g]), ["g", u === "ml" ? "mililitri" : "grami", 1]];
+    const uOf = (k) => units.find((x) => x[0] === k) || units[0];
+    const start = edit ? edit.mode : last ? last.mode : f.alt ? "a0" : f.pn && f.pg && f.pn !== "g" ? "por" : "g";
+    let mode = units.some((x) => x[0] === start) ? start : "por";
+    let val = edit ? edit.amt : last && last.mode === mode ? last.amt : mode === "g" ? 100 : 1;
+    let meal = edit ? edit.meal : addMeal;
     openSheet(`<div class="amt-name">${esc(f.n)}</div><div class="amt-sub">${fmt(f.kcal)} kcal na 100 ${u} · ${f.pn} = ${f.pg} ${u}</div>
       <div class="amt-kcal"><b id="aK">0</b><span>kcal</span></div>
       <div class="amt-mac"><div><b id="aP">0</b>proteini</div><div><b id="aC">0</b>ugljeni h.</div><div><b id="aF">0</b>masti</div></div>
-      <div class="unit"><button data-u="por">${esc(f.pn)} (${f.pg} ${u})</button><button data-u="g">${u === "ml" ? "mililitri" : "grami"}</button></div>
+      <div class="unit" style="grid-template-columns:repeat(${units.length},1fr)">${units.map(([k, n, g]) => `<button data-u="${k}">${esc(n)}${k === "g" ? "" : `<small>${r1(g)} ${u}</small>`}</button>`).join("")}</div>
+      ${f.alt ? `<div class="rows-set"><span>Cela čokolada ima</span><button id="rMn">−</button><b id="rN">${f.rows}</b><button id="rPl">+</button><span>redova</span></div>` : ""}
       <div class="stepper"><button id="mn">−</button><input id="av" inputmode="decimal" /><button id="pl">+</button></div>
       <div class="quick" id="qk"></div>
       <div class="mealpick" id="mp">${MEALS.map(([k, n]) => `<button data-m="${k}">${n}</button>`).join("")}</div>
       <button class="btn red" id="ok">${edit ? "Sačuvaj izmenu" : "Dodaj"}</button>
       ${edit ? '<button class="btn danger" id="del">Obriši</button>' : ""}`);
-    const grams = () => (mode === "por" ? val * f.pg : val);
+    const grams = () => val * uOf(mode)[2];
     const upd = () => {
-      const g = grams(), k = (f.kcal * g) / 100;
-      $("#av").value = mode === "por" ? r1(val) : r0(val);
+      const g = grams(), k = (f.kcal * g) / 100, um = uOf(mode);
+      $("#av").value = mode === "g" ? r0(val) : r1(val);
       countTo($("#aK"), k, 350); $("#aP").textContent = r1((f.p * g) / 100); $("#aC").textContent = r1((f.c * g) / 100); $("#aF").textContent = r1((f.f * g) / 100);
       $$(".unit button").forEach((b) => b.classList.toggle("on", b.dataset.u === mode));
       $$("#mp button").forEach((b) => b.classList.toggle("on", b.dataset.m === meal));
-      $("#qk").innerHTML = (mode === "por" ? [0.5, 1, 1.5, 2, 3] : u === "ml" ? [100, 200, 250, 330, 500] : [50, 100, 150, 200, 300]).map((x) => `<button data-q="${x}">${mode === "por" ? x + " " + f.pn : x + " " + u}</button>`).join("");
+      const qs = mode === "g" ? (u === "ml" ? [100, 200, 250, 330, 500] : [25, 50, 100, 150, 200]) : mode === "por" ? [0.25, 0.5, 1, 1.5, 2] : [1, 2, 3, 4, 6];
+      $("#qk").innerHTML = qs.map((x) => `<button data-q="${x}">${mode === "g" ? x + " " + u : (x === 0.25 ? "¼" : x === 0.5 ? "½" : x) + " " + plural(x, um[1])}</button>`).join("");
       $$("#qk button").forEach((b) => (b.onclick = () => { val = +b.dataset.q; vib(); upd(); }));
     };
-    $$(".unit button").forEach((b) => (b.onclick = () => { if (b.dataset.u === mode) return; val = b.dataset.u === "g" ? r0(val * f.pg) : r1(val / f.pg) || 1; mode = b.dataset.u; upd(); }));
-    const stp = () => (mode === "por" ? (val > 1 || f.pg <= 60 ? 1 : 0.5) : 10);
+    $$(".unit button").forEach((b) => (b.onclick = () => {
+      if (b.dataset.u === mode) return; const g = grams(); mode = b.dataset.u;
+      val = mode === "g" ? r0(g) : Math.max(mode === "por" ? 0.25 : 1, r1(g / uOf(mode)[2])); upd();
+    }));
+    if (f.alt) {
+      const setRows = (n) => { f.rows = Math.max(1, Math.min(20, n)); f.alt = [{ n: "red", g: r1(f.pack / f.rows) }, { n: "kocka", g: r1(f.pack / (f.rows * 4)) }];
+        units.splice(1, 2, ["a0", "red", f.alt[0].g], ["a1", "kocka", f.alt[1].g]); $("#rN").textContent = f.rows;
+        $$(".unit button small").forEach((s, i) => (s.textContent = `${r1(units[i][2])} ${u}`)); save(); upd(); };
+      $("#rMn").onclick = () => setRows(f.rows - 1); $("#rPl").onclick = () => setRows(f.rows + 1);
+    }
+    const stp = () => (mode === "g" ? 10 : mode === "por" ? (val > 1 || f.pg <= 60 ? 1 : 0.5) : 1);
     $("#mn").onclick = () => { val = Math.max(0, r1(val - stp())); vib(); upd(); };
     $("#pl").onclick = () => { val = r1(val + stp()); vib(); upd(); };
-    $("#av").oninput = (e) => { const n = parseFloat(String(e.target.value).replace(",", ".")); if (!isNaN(n)) { val = n; const g = grams(); countTo($("#aK"), (f.kcal * g) / 100, 200); } };
+    $("#av").oninput = (e) => { const n = parseFloat(String(e.target.value).replace(",", ".")); if (!isNaN(n)) { val = n; countTo($("#aK"), (f.kcal * grams()) / 100, 200); } };
     $("#av").onblur = upd;
     $$("#mp button").forEach((b) => (b.onclick = () => { meal = b.dataset.m; upd(); }));
     $("#ok").onclick = () => {
       const g = grams(); if (!(g > 0)) { toast("Upiši količinu"); return; }
-      const qty = mode === "por" ? `${r1(val)} ${f.pn} (${r0(g)} ${u})` : `${r0(g)} ${u}`;
+      const um = uOf(mode);
+      const qty = mode === "g" ? `${r0(g)} ${u}` : `${r1(val)} ${plural(r1(val), um[1])} (${r0(g)} ${u})`;
       const it = { id: edit ? edit.id : uid(), fid: f.id, n: f.n, g, amt: val, mode, qty, meal, kcal: (f.kcal * g) / 100, p: (f.p * g) / 100, c: (f.c * g) / 100, f: (f.f * g) / 100, t: Date.now() };
       const d = day(cur);
       if (edit) d.items[d.items.findIndex((x) => x.id === edit.id)] = it; else d.items.push(it);
@@ -403,6 +429,10 @@
         const pg = r0(liquid ? pack || p.serving_quantity || 250 : p.serving_quantity || pack || 100);
         const f = { id: mine ? mine.id : "c" + uid(), code, u, uv: 2, n: [p.product_name, p.brands && p.brands.split(",")[0]].filter(Boolean).join(" · ") || "Proizvod " + code,
           kcal: r1(nt["energy-kcal_100g"]), p: r1(nt.proteins_100g || 0), c: r1(nt.carbohydrates_100g || 0), f: r1(nt.fat_100g || 0), cat: liquid ? "Pića" : "skenirano", pn, pg };
+        f.pack = pack || f.pg;
+        if ((p.categories_tags || []).some((t) => /chocolate|chocolat|candy-bar|bars/i.test(t)) || CHOC.test(f.n)) {
+          f.rows = 6; f.alt = [{ n: "red", g: r1(f.pack / 6) }, { n: "kocka", g: r1(f.pack / 24) }]; f.pn = "cela"; f.pg = r0(f.pack);
+        }
         S.custom = S.custom.filter((x) => x.code !== code); S.custom.unshift(f); save(); toast("✅ Pronađeno: " + f.n); openAmount(f); return;
       }
       if (mine) return openAmount(mine);

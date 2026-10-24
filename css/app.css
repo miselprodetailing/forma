@@ -348,3 +348,8 @@ b { font-weight: 800; }
 html { padding-top: env(safe-area-inset-top, 0px); }
 
 .btn[hidden] { display: none !important; }
+
+.unit button small { display: block; font-size: 10.5px; font-weight: 700; opacity: .7; margin-top: 1px; }
+.rows-set { display: flex; align-items: center; justify-content: center; gap: 10px; margin: -2px 0 12px; font-size: 13px; color: #cfcfd5; font-weight: 700; }
+.rows-set button { width: 34px; height: 34px; border-radius: 50%; background: var(--card2); border: 1px solid var(--line); font-size: 18px; font-weight: 800; }
+.rows-set b { font-family: "Anton"; font-weight: 400; font-size: 24px; min-width: 24px; text-align: center; color: #fff; }
