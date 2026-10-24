@@ -7,9 +7,9 @@ window.HRANA = [
   ["Hleb raženi", 259, 8.5, 48, 3.3, "Pekara", "kriška", 30],
   ["Kifla", 290, 9, 52, 5, "Pekara", "komad", 60],
   ["Pogača", 300, 8, 50, 7, "Pekara", "parče", 80],
-  ["Burek sa mesom", 280, 10, 22, 17, "Pekara", "porcija", 250],
-  ["Burek sa sirom", 300, 9, 24, 19, "Pekara", "porcija", 250],
-  ["Burek prazan (zeljanica/krompir)", 260, 6, 26, 15, "Pekara", "porcija", 250],
+  ["Burek sa mesom", 280, 10, 22, 17, "Pekara", "osmina", 125],
+  ["Burek sa sirom", 300, 9, 24, 19, "Pekara", "osmina", 125],
+  ["Burek prazan (zeljanica/krompir)", 260, 6, 26, 15, "Pekara", "osmina", 125],
   ["Pita sa sirom", 290, 10, 26, 16, "Pekara", "parče", 150],
   ["Gibanica", 310, 11, 22, 20, "Pekara", "parče", 150],
   ["Kiflica sa sirom", 340, 9, 38, 17, "Pekara", "komad", 50],
@@ -250,4 +250,7 @@ window.HRANA = [
   ["Ulje (suncokret/maslinovo)", 884, 0, 0, 100, "Dodaci", "kašika", 10],
   ["Šećer u kafi (kašičica)", 400, 0, 100, 0, "Dodaci", "kašičica", 5],
   ["Pavlaka za kuvanje", 195, 2.5, 4, 19, "Dodaci", "kašika", 20],
+  // dodato kasnije (nove stavke uvek na kraj liste, da se ne pomere stare)
+  ["Kakao sa mlekom (sa šećerom)", 80, 3.4, 11, 2.8, "Pića", "šolja", 250],
+  ["Kakao sa mlekom (bez šećera)", 66, 3.6, 6, 3, "Pića", "šolja", 250],
 ];
